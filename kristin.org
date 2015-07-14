@@ -58,3 +58,64 @@
 #+END_SRC
 
 
+* [2015-07-14 Di] Estimating Cluster effect of families
+#+BEGIN_SRC R :session :results output
+  require(lme4)
+  require(gamlss)
+  require(gamlss.tr)
+
+  load("daten_komplett.RData")
+  daten$PSIC <- gsub(" ","",daten$PSIC)
+
+  tmpdata_boys <- na.omit(daten[daten$SEX==1,c("LAB_FERR_S_NUM_VALUE","AGE","SEX","FAMNR")])
+
+  gen.trun(par=c(0),family="BCCG",type="left")
+
+
+  mmferr_boys <- gamlss(LAB_FERR_S_NUM_VALUE ~ pb(AGE), family = BCCGtr, data = tmpdata_boys[!duplicated(tmpdata_boys$FAMNR),] )
+
+  tmpdata_boys$sds <- centiles.pred(mmferr_boys,
+                                    xname = "AGE",
+                                    xvalues = tmpdata_boys$AGE,
+                                    yval = tmpdata_boys$LAB_FERR_S_NUM_VALUE,
+                                    type = "z-scores")
+
+  mm <- lmer(sds ~ 1 + (1 | FAMNR), data = tmpdata_boys)
+  summary(mm)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+A truncated family of distributions from BCCG has been generated 
+ and saved under the names:  
+ dBCCGtr pBCCGtr qBCCGtr rBCCGtr BCCGtr 
+The type of truncation is left and the truncation parameter is 0
+GAMLSS-RS iteration 1: Global Deviance = 6784.704 
+GAMLSS-RS iteration 2: Global Deviance = 6696.853 
+GAMLSS-RS iteration 3: Global Deviance = 6694.589 
+GAMLSS-RS iteration 4: Global Deviance = 6694.583 
+GAMLSS-RS iteration 5: Global Deviance = 6694.569 
+GAMLSS-RS iteration 6: Global Deviance = 6694.571 
+GAMLSS-RS iteration 7: Global Deviance = 6694.57
+ new prediction
+Linear mixed model fit by REML ['lmerMod']
+Formula: sds ~ 1 + (1 | FAMNR)
+   Data: tmpdata_boys
+
+REML criterion at convergence: 3787.3
+
+Scaled residuals: 
+    Min      1Q  Median      3Q     Max 
+-3.2090 -0.4981  0.0160  0.4703  3.8183 
+
+Random effects:
+ Groups   Name        Variance Std.Dev.
+ FAMNR    (Intercept) 0.5430   0.7369  
+ Residual             0.4769   0.6906  
+Number of obs: 1410, groups:  FAMNR, 781
+
+Fixed effects:
+            Estimate Std. Error t value
+(Intercept) 0.009033   0.033083   0.273
+#+end_example
+
