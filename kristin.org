@@ -57,7 +57,6 @@
     theme_bw()
 #+END_SRC
 
-
 * [2015-07-14 Di] Estimating Cluster effect of families
 #+BEGIN_SRC R :session :results output
   require(lme4)
@@ -67,21 +66,78 @@
   load("daten_komplett.RData")
   daten$PSIC <- gsub(" ","",daten$PSIC)
 
-  tmpdata_boys <- na.omit(daten[daten$SEX==1,c("LAB_FERR_S_NUM_VALUE","AGE","SEX","FAMNR")])
+  gen.trun(par=c(0),family="BCCGo",type="left")
+  gen.trun(par=c(0),family="BCTo",type="left")
+  gen.trun(par=c(0),family="BCPEo",type="left")
 
-  gen.trun(par=c(0),family="BCCG",type="left")
+  models <- list()
+  resdata <- list()
+  lmsdata <- list()
+
+  mgs <- names(daten)[grep("NUM_VALUE",names(daten))]
+
+  for(mg in mgs){
+      print(mg)
+      tmpdata_boys <- na.omit(daten[daten$SEX==1,c(mg,"AGE","SEX","FAMNR")])
+      tmpdata_girls <- na.omit(daten[daten$SEX==2,c(mg,"AGE","SEX","FAMNR")])
+
+      names(tmpdata_boys)[1] <- names(tmpdata_girls)[1] <- "value"
+
+      print("fitting boys")
+      ## mm_boys <- gamlss(value ~ pb(AGE),
+      ##                   sigma.fo=~pb(AGE,2),
+      ##                   nu.fo=~pb(AGE,1),
+      ##                   family = BCCGtr,
+      ##                   data = tmpdata_boys[!duplicated(tmpdata_boys$FAMNR),] )
+
+      mm_boys <- lms(value, AGE, data = tmpdata_boys[!duplicated(tmpdata_boys$FAMNR),], families = c("BCCGotr","BCPEo"), method.pb = "ML", k = 2, mu.df = 4, sigma.df = 2, nu.df = 0)
+      
+      print("fitting girls")
+      ## mm_girls <- gamlss(value ~ pb(AGE),
+      ##                    sigma.fo=~pb(AGE,2),
+      ##                    nu.fo=~pb(AGE,1),
+      ##                    family = BCCGtr,
+      ##                    data = tmpdata_girls[!duplicated(tmpdata_girls$FAMNR),] )
+      
+      mm_girls <- lms(value, AGE, data = tmpdata_girls[!duplicated(tmpdata_girls$FAMNR),], families = c("BCCGotr","BCPEo"), method.pb = "ML", k = 2, mu.df = 4, sigma.df = 2, nu.df = 1)
+
+      
+      tmpdata_boys$sds <- centiles.pred(mm_boys,
+                                        xname = "AGE",
+                                        xvalues = tmpdata_boys$AGE,
+                                        yval = tmpdata_boys$value,
+                                        type = "z-scores")
+      
+      tmpdata_girls$sds <- centiles.pred(mm_girls,
+                                        xname = "AGE",
+                                        xvalues = tmpdata_girls$AGE,
+                                        yval = tmpdata_girls$value,
+                                        type = "z-scores")
+      
+      tmpdata_boys$mg <- tmpdata_girls$mg <- mg
+
+      lms.boys <- as.data.frame(predictAll(mm_boys,newdata = data.frame(AGE = seq(2,18,0.1))))
+      lms.girls <- as.data.frame(predictAll(mm_girls,newdata = data.frame(AGE = seq(2,18,0.1))))
+
+      lms.boys$age <- lms.girls$age <- seq(2,18,0.1)
+      lms.boys$mg <- lms.girls$mg <- mg
+      
+      models[[length(models) + 1]] <- list(boys = mm_boys,girls = mm_girls)
+      resdata[[length(resdata) + 1]] <- list(boys = tmpdata_boys,girls = tmpdata_girls)
+      lmsdata[[length(lmsdata) + 1]] <- list(boys = lms.boys,girls = lms.girls)
+      
+  }
 
 
-  mmferr_boys <- gamlss(LAB_FERR_S_NUM_VALUE ~ pb(AGE), family = BCCGtr, data = tmpdata_boys[!duplicated(tmpdata_boys$FAMNR),] )
-
-  tmpdata_boys$sds <- centiles.pred(mmferr_boys,
-                                    xname = "AGE",
-                                    xvalues = tmpdata_boys$AGE,
-                                    yval = tmpdata_boys$LAB_FERR_S_NUM_VALUE,
-                                    type = "z-scores")
 
   mm <- lmer(sds ~ 1 + (1 | FAMNR), data = tmpdata_boys)
+  mm2 <- lmer(sds ~ 1 + (1 | dummy), data = tmpdata_boys)
   summary(mm)
+  summary(mm2)
+
+  anova(mm,mm2)
+
+
 #+END_SRC
 
 #+RESULTS:
