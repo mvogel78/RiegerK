@@ -175,3 +175,66 @@ Fixed effects:
 (Intercept) 0.009033   0.033083   0.273
 #+end_example
 
+* [2015-07-16 Do] bootstrapping
+#+BEGIN_SRC R :session
+  require(gamlss)
+  require(gamlss.tr)
+  require(dplyr)
+
+  load("daten_komplett.RData")
+
+  mgs <- c("LAB_TRF_S_NUM_VALUE","LAB_GBB_HGBK_E_NUM_VALUE","LAB_FERR_S_NUM_VALUE","LAB_GBB_RETI_E_NUM_VALUE")
+
+  mg <- mgs[1]
+
+  print(mg)
+  data_boys <- na.omit(daten[daten$SEX==1,c(mg,"AGE","SEX","FAMNR")])
+  data_girls <- na.omit(daten[daten$SEX==2,c(mg,"AGE","SEX","FAMNR")])
+  names(data_boys)[1] <- names(data_girls)[1] <- "value"
+
+  res.boys <- list()
+  res.girls <- list()
+
+  for(i in 1:1000){
+      weights <- group_by(data_boys,FAMNR) %>% summarise(n=n(), wgt = 1/(n+1))
+      weights <- weights[sample(1:nrow(weights),size = 500,
+                                prob = weights$wgt),]
+      tmpdata_boys <- data_boys[data_boys$FAMNR %in% weights$FAMNR,]
+      tmpdata_boys <- tmpdata_boys %>% group_by(FAMNR) %>% sample_n(1)
+
+      weights <- group_by(data_girls,FAMNR) %>% summarise(n=n(), wgt = 1/(n+1))
+      weights <- weights[sample(1:nrow(weights),size = 500,
+                                prob = weights$wgt),]
+      tmpdata_girls <- data_girls[data_girls$FAMNR %in% weights$FAMNR,]
+      tmpdata_girls <- tmpdata_girls %>% group_by(FAMNR) %>% sample_n(1)
+      
+      print("fitting boys")
+      tr.obj1 <- try(mm_boys <- lms(value, AGE, data = tmpdata_boys,
+                     families = "BCPEo",method.pb = "ML", k = 2,trace = F))
+      
+      print("fitting girls")
+      tr.obj2 <- try(mm_girls <- lms(value, AGE, data = tmpdata_girls,
+                      families = "BCPEo",method.pb = "ML", k = 2,trace = F))
+
+      age <- seq(2,18,0.1)
+
+      if(mm_boys$family != "NO" & class(tr.obj1) != "try-error"){
+          lms.boys <- as.data.frame(predictAll(mm_boys,
+                                               newdata = data.frame(AGE = age)))
+          lms.boys$age <- age
+          res.boys[[length(res.boys) + 1 ]] <- lms.boys}
+
+      if(mm_girls$family != "NO" & class(tr.obj2) != "try-error"){
+          lms.girls <- as.data.frame(predictAll(mm_girls,newdata = data.frame(AGE = age)))
+          lms.girls$age <- age
+          res.girls[[length(res.girls) + 1 ]] <- lms.girls }
+  }
+
+  ## save(res.boys,res.girls,file = "201507trf.rdata")
+
+
+
+
+
+
+#+END_SRC
