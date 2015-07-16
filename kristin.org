@@ -180,61 +180,131 @@ Fixed effects:
   require(gamlss)
   require(gamlss.tr)
   require(dplyr)
-
+  
   load("daten_komplett.RData")
-
+  
   mgs <- c("LAB_TRF_S_NUM_VALUE","LAB_GBB_HGBK_E_NUM_VALUE","LAB_FERR_S_NUM_VALUE","LAB_GBB_RETI_E_NUM_VALUE")
-
+  
   mg <- mgs[1]
+  
+  
+  for(mg in mgs){
+      filename <- paste0(mg,".rdata")
+      print(filename)
+      data_boys <- na.omit(daten[daten$SEX==1,c(mg,"AGE","SEX","FAMNR")])
+      data_girls <- na.omit(daten[daten$SEX==2,c(mg,"AGE","SEX","FAMNR")])
+      names(data_boys)[1] <- names(data_girls)[1] <- "value"
+  
+      res.boys <- list()
+      res.girls <- list()
+  
+      for(i in 1:1000){
+          print(i)
+          weights <- group_by(data_boys,FAMNR) %>% summarise(n=n(), wgt = 1-1/(n+1))
+          weights <- weights[sample(1:nrow(weights),size = 500,
+                                    prob = weights$wgt),]
+          tmpdata_boys <- data_boys[data_boys$FAMNR %in% weights$FAMNR,]
+          tmpdata_boys <- tmpdata_boys %>% group_by(FAMNR) %>% sample_n(1)
+  
+          weights <- group_by(data_girls,FAMNR) %>% summarise(n=n(), wgt = 1/(n+1))
+          weights <- weights[sample(1:nrow(weights),size = 500,
+                                    prob = weights$wgt),]
+          tmpdata_girls <- data_girls[data_girls$FAMNR %in% weights$FAMNR,]
+          tmpdata_girls <- tmpdata_girls %>% group_by(FAMNR) %>% sample_n(1)
+          
+          print("fitting boys")
+          tr.obj1 <- try(mm_boys <- lms(value, AGE, data = tmpdata_boys,
+                                        families = "BCPEo",method.pb = "ML", k = 2,trace = F))
+          
+          print("fitting girls")
+          tr.obj2 <- try(mm_girls <- lms(value, AGE, data = tmpdata_girls,
+                                         families = "BCPEo",method.pb = "ML", k = 2,trace = F))
+  
+          age <- seq(2,18,0.1)
+  
+          if(mm_boys$family != "NO" & class(tr.obj1) != "try-error"){
+              lms.boys <- as.data.frame(predictAll(mm_boys,
+                                                   newdata = data.frame(AGE = age)))
+              lms.boys$age <- age
+              res.boys[[length(res.boys) + 1 ]] <- lms.boys}
+  
+          if(mm_girls$family != "NO" & class(tr.obj2) != "try-error"){
+              lms.girls <- as.data.frame(predictAll(mm_girls,newdata = data.frame(AGE = age)))
+              lms.girls$age <- age
+              res.girls[[length(res.girls) + 1 ]] <- lms.girls }
+      }
+      save(res.boys,res.girls,file = filename)
+  }
+  ## save(res.boys,res.girls,file = "201507trf.rdata")
+  save(res.boys,res.girls,file = "201507v2trf.rdata")
+  
+#+END_SRC
 
-  print(mg)
-  data_boys <- na.omit(daten[daten$SEX==1,c(mg,"AGE","SEX","FAMNR")])
-  data_girls <- na.omit(daten[daten$SEX==2,c(mg,"AGE","SEX","FAMNR")])
-  names(data_boys)[1] <- names(data_girls)[1] <- "value"
+* [2015-07-16 Do] parameter summaries 
+#+BEGIN_SRC R :session
+  require(dplyr)
+  require(ggplot2)
+  require(reshape2)
+  load("201507v2trf.rdata")
 
-  res.boys <- list()
-  res.girls <- list()
+  names(res.girls) <- 1:length(res.girls)
 
-  for(i in 1:1000){
-      weights <- group_by(data_boys,FAMNR) %>% summarise(n=n(), wgt = 1/(n+1))
-      weights <- weights[sample(1:nrow(weights),size = 500,
-                                prob = weights$wgt),]
-      tmpdata_boys <- data_boys[data_boys$FAMNR %in% weights$FAMNR,]
-      tmpdata_boys <- tmpdata_boys %>% group_by(FAMNR) %>% sample_n(1)
-
-      weights <- group_by(data_girls,FAMNR) %>% summarise(n=n(), wgt = 1/(n+1))
-      weights <- weights[sample(1:nrow(weights),size = 500,
-                                prob = weights$wgt),]
-      tmpdata_girls <- data_girls[data_girls$FAMNR %in% weights$FAMNR,]
-      tmpdata_girls <- tmpdata_girls %>% group_by(FAMNR) %>% sample_n(1)
-      
-      print("fitting boys")
-      tr.obj1 <- try(mm_boys <- lms(value, AGE, data = tmpdata_boys,
-                     families = "BCPEo",method.pb = "ML", k = 2,trace = F))
-      
-      print("fitting girls")
-      tr.obj2 <- try(mm_girls <- lms(value, AGE, data = tmpdata_girls,
-                      families = "BCPEo",method.pb = "ML", k = 2,trace = F))
-
-      age <- seq(2,18,0.1)
-
-      if(mm_boys$family != "NO" & class(tr.obj1) != "try-error"){
-          lms.boys <- as.data.frame(predictAll(mm_boys,
-                                               newdata = data.frame(AGE = age)))
-          lms.boys$age <- age
-          res.boys[[length(res.boys) + 1 ]] <- lms.boys}
-
-      if(mm_girls$family != "NO" & class(tr.obj2) != "try-error"){
-          lms.girls <- as.data.frame(predictAll(mm_girls,newdata = data.frame(AGE = age)))
-          lms.girls$age <- age
-          res.girls[[length(res.girls) + 1 ]] <- lms.girls }
+  calc.vals <- function(perc,mu,sigma,nu){
+      z <- qnorm(perc)
+      (((z * nu * sigma) + 1)**(1/nu)) * mu
   }
 
-  ## save(res.boys,res.girls,file = "201507trf.rdata")
+
+  res.girls <- lapply(res.girls,function(x) {
+      x$perc3 <- calc.vals(perc=0.03,x$mu,x$sigma,x$nu)
+      x$perc10 <- calc.vals(perc=0.10,x$mu,x$sigma,x$nu)
+      x$perc50 <- calc.vals(perc=0.5,x$mu,x$sigma,x$nu)
+      x$perc90 <- calc.vals(perc=0.9,x$mu,x$sigma,x$nu)
+      x$perc97 <- calc.vals(perc=0.97,x$mu,x$sigma,x$nu)
+      return(x)
+  })
+
+  res <- Reduce(rbind,res.girls)
+  res$which <- rep(1:947,each = 161)
+
+  perc.single <- melt(res,id.vars = c("which","age","mu","sigma","nu","tau"))
+
+  perc.sum <- res %>% group_by(age) %>%
+      summarise(
+          mean.mu = mean(mu),
+          sd.mu = sd(mu),
+          mean.sigma = mean(sigma),
+          sd.sigma = sd(sigma),
+          mean.nu = mean(nu),
+          sd.nu = sd(nu),
+          mean.tau = mean(tau),
+          sd.tau = sd(tau)
+          )
+
+  perc.sum$mean.perc3 <- calc.vals(perc=0.03,perc.sum$mean.mu,perc.sum$mean.sigma,perc.sum$mean.nu)
+  perc.sum$mean.perc10 <- calc.vals(perc=0.10,perc.sum$mean.mu,perc.sum$mean.sigma,perc.sum$mean.nu)
+  perc.sum$mean.perc50 <- calc.vals(perc=0.5,perc.sum$mean.mu,perc.sum$mean.sigma,perc.sum$mean.nu)
+  perc.sum$mean.perc90 <- calc.vals(perc=0.9,perc.sum$mean.mu,perc.sum$mean.sigma,perc.sum$mean.nu)
+  perc.sum$mean.perc97 <- calc.vals(perc=0.97,perc.sum$mean.mu,perc.sum$mean.sigma,perc.sum$mean.nu)
 
 
+  perc.sum <- melt(perc.sum,id.vars = c("age",
+                           "mean.mu","mean.sigma","mean.nu","mean.tau",
+                           "sd.mu","sd.sigma","sd.nu","sd.tau"))
 
+  ggplot(perc.single,aes(x=age,
+                         y=value,
+                         colour=variable,
+                         group=paste(variable,which))) +
+             geom_line(alpha=0.01) +
+             scale_colour_manual(values = c("firebrick","orangered","forestgreen","orangered","firebrick")) +
+             geom_line(data = perc.sum, inherit.aes = F,
+                       aes(x=age,y=value,group=variable),
+                       colour = "black") +
+             theme_bw() +
+             theme(
+                 legend.position = "none"
+                 )
 
-
-
+  ## ggsave("transferringirls.png")
 #+END_SRC
