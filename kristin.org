@@ -177,9 +177,11 @@ Fixed effects:
 
 * [2015-07-16 Do] bootstrapping
 #+BEGIN_SRC R :session
+  today <- gsub("-","",as.character(Sys.Date()))
   require(gamlss)
   require(gamlss.tr)
   require(dplyr)
+  
   
   load("daten_komplett.RData")
   
@@ -189,16 +191,17 @@ Fixed effects:
   
   
   for(mg in mgs){
-      filename <- paste0(mg,".rdata")
+      
+      filename <- paste0(today,mg,".rdata")
       print(filename)
       data_boys <- na.omit(daten[daten$SEX==1,c(mg,"AGE","SEX","FAMNR")])
       data_girls <- na.omit(daten[daten$SEX==2,c(mg,"AGE","SEX","FAMNR")])
       names(data_boys)[1] <- names(data_girls)[1] <- "value"
   
-      if(mg == "LAB_FERR_S_NUM_VALUE"){
-          data_boys <- data_boys[data_boys$value < 220 & data_boys$AGE < 17,]
-          data_girls <- data_boys[data_girls$value < 220 & data_girls$AGE < 17,]
-      }
+      ## if(mg == "LAB_FERR_S_NUM_VALUE"){
+      ##     data_boys <- data_boys[data_boys$value < 220 & data_boys$AGE < 17,]
+      ##     data_girls <- data_boys[data_girls$value < 220 & data_girls$AGE < 17,]
+      ## }
       
       res.boys <- list()
       res.girls <- list()
@@ -227,7 +230,7 @@ Fixed effects:
                                          families = "BCPEo",method.pb = "ML", k = 2,trace = F,
                                          sigma.df = 3))
   
-          age <- seq(2,18,0.1)
+          age <- seq(2,18,by = 1/12)
   
           if(mm_boys$family != "NO" & class(tr.obj1) != "try-error"){
               lms.boys <- as.data.frame(predictAll(mm_boys,
