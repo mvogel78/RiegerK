@@ -261,10 +261,11 @@ Fixed effects:
   
   mgs <- c("LAB_TRF_S_NUM_VALUE","LAB_GBB_HGBK_E_NUM_VALUE","LAB_FERR_S_NUM_VALUE","LAB_GBB_RETI_E_NUM_VALUE")
   
-  limits <- list(c(0,5),c(0,20),c(0,25),c(0,22))
+  limits <- list(c(0,5),c(0,20),c(0,150),c(0,22))
   names(limits) <- mgs
   
   for(mg in mgs){
+      ## mg <- mgs[3]
       filename <- paste0(mg,".rdata")
       tt <- load(filename)
   
