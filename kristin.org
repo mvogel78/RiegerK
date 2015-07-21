@@ -182,7 +182,6 @@ Fixed effects:
   require(gamlss.tr)
   require(dplyr)
   
-  
   load("daten_komplett.RData")
   
   mgs <- c("LAB_TRF_S_NUM_VALUE","LAB_GBB_HGBK_E_NUM_VALUE","LAB_FERR_S_NUM_VALUE","LAB_GBB_RETI_E_NUM_VALUE")
@@ -232,13 +231,13 @@ Fixed effects:
   
           age <- seq(2,18,by = 1/12)
   
-          if(mm_boys$family != "NO" & class(tr.obj1) != "try-error"){
+          if(mm_boys$family != "NO" & !("try-error" %in% class(tr.obj1))){
               lms.boys <- as.data.frame(predictAll(mm_boys,
                                                    newdata = data.frame(AGE = age)))
               lms.boys$age <- age
               res.boys[[length(res.boys) + 1 ]] <- lms.boys}
   
-          if(mm_girls$family != "NO" & class(tr.obj2) != "try-error"){
+          if(mm_girls$family != "NO" & !("try-error" %in% class(tr.obj2))){
               lms.girls <- as.data.frame(predictAll(mm_girls,newdata = data.frame(AGE = age)))
               lms.girls$age <- age
               res.girls[[length(res.girls) + 1 ]] <- lms.girls }
