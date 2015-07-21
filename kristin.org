@@ -254,7 +254,7 @@ Fixed effects:
   require(dplyr)
   require(ggplot2)
   require(reshape2)
-  load("201507v2trf.rdata")
+  ## load("201507v2trf.rdata")
   
   calc.vals <- function(perc,mu,sigma,nu){
       z <- qnorm(perc)
@@ -268,7 +268,7 @@ Fixed effects:
   
   for(mg in mgs){
       ## mg <- mgs[3]
-      filename <- paste0(mg,".rdata")
+      filename <- paste0("20150720",mg,".rdata")
       tt <- load(filename)
   
       names(res.girls) <- 1:length(res.girls)
@@ -295,12 +295,12 @@ Fixed effects:
       n.iter <- length(res.girls)
       print(n.iter)
       res.girls <- Reduce(rbind,res.girls)
-      res.girls$which <- rep(1:n.iter,each = 161)
+      res.girls$which <- rep(1:n.iter,each = 193)
   
       n.iter <- length(res.boys)
       print(n.iter)
       res.boys <- Reduce(rbind,res.boys)
-      res.boys$which <- rep(1:n.iter,each = 161)
+      res.boys$which <- rep(1:n.iter,each = 193)
   
       perc.single.girls <- melt(res.girls,id.vars = c("which","age","mu","sigma","nu","tau"))
       perc.single.boys <- melt(res.boys,id.vars = c("which","age","mu","sigma","nu","tau"))
@@ -391,4 +391,36 @@ Fixed effects:
   
   load("LAB_FERR_S_NUM_VALUEresults.rdata")
   load("LAB_FERR_S_NUM_VALUE.rdata")
+#+END_SRC
+* [2015-07-21 Di] lms for data base
+#+BEGIN_SRC R :session
+  files <- dir()[grep("results",dir())]
+  
+  
+  res <- list()
+  
+  for(file in files){
+      load(file)
+      mg <- gsub("results.rdata|LAB_|_NUM_VALUE","",file)
+      
+      perc.sum.girls <- unique(perc.sum.girls[,-grep("variable|value|sd\\.|\\.tau",names(perc.sum.girls))])
+      perc.sum.girls$sex <- 2
+      perc.sum.boys <- unique(perc.sum.boys[,-grep("variable|value|sd\\.|\\.tau",names(perc.sum.boys))])
+      perc.sum.boys$sex <- 1
+  
+      names(perc.sum.boys) <- names(perc.sum.girls) <- c("age","mean","sigma","lambda","sex")
+      perc.sum.girls$mg <- perc.sum.boys$mg <- mg
+          
+      res[[length(res) + 1]] <- perc.sum.girls
+      res[[length(res) + 1]] <- perc.sum.boys
+  }
+  
+  result <- Reduce(rbind,res)
+  
+  require(XLConnect)
+  wb <- loadWorkbook("20150721lmstables.xlsx",create=T)
+  createSheet(wb,"data")
+  writeWorksheet(wb,result,"data")
+  saveWorkbook(wb)
+                 
 #+END_SRC
