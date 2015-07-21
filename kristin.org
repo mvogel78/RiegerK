@@ -417,6 +417,10 @@ Fixed effects:
   
   result <- Reduce(rbind,res)
   
+  result$ageLB <- result$age - 1/24
+  result$ageUB <- result$age + 1/24
+  
+  
   require(XLConnect)
   wb <- loadWorkbook("20150721lmstables.xlsx",create=T)
   createSheet(wb,"data")
