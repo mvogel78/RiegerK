@@ -475,3 +475,32 @@ Fixed effects:
   saveWorkbook(wb)
                  
 #+END_SRC
+* [2015-07-22 Mi] Beispiel Boxplots
+#+BEGIN_SRC R :session
+  load("daten_komplett.RData")
+  
+  spalten <- c("PSIC","CHILD_SOZ_WI_FAS","LAB_TRF_S_NUM_VALUE","LAB_GBB_HGBK_E_NUM_VALUE","LAB_FERR_S_NUM_VALUE","LAB_GBB_RETI_E_NUM_VALUE")
+  
+  dbp <- daten[,spalten]
+  
+  require(reshape2)
+  
+  dbp <- melt(dbp, id.vars = c("PSIC","CHILD_SOZ_WI_FAS"))
+  
+  ggplot(dbp,aes(x=factor(CHILD_SOZ_WI_FAS),y=value,colour=variable)) +
+             geom_boxplot() +
+                 scale_colour_grey(start = 0, end = 1)
+  
+  
+  ggplot(dbp,aes(x=variable,y=value,colour=factor(CHILD_SOZ_WI_FAS))) +
+             geom_boxplot() +
+                 scale_colour_manual(values = c("black","red","green","blue"))
+  
+  
+  ggplot(dbp,aes(x=variable,y=value,colour=factor(CHILD_SOZ_WI_FAS))) +
+             geom_boxplot() +
+             facet_wrap(~CHILD_SOZ_WI_FAS,scales = "free") +
+             scale_colour_brewer(palette = "Set1")
+  
+  ## http://colorbrewer2.org/
+#+END_SRC
